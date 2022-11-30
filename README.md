@@ -4,6 +4,7 @@ This repository contains the pretrained convex-ridge regularizers (CRR-NNs) intr
 Each of the 14 given regularizers $R_{t,\sigma}$ was trained on a $t$-step denoising task, $t=1, 2, 5, 10, 20, 30, 50$ with noise level $\sigma$, $\sigma=5, 25$.
 The performance of $R_{t,\sigma}$ marginally depends on $t$, and tuning this hyperparameter to solve an inverse problem is not necessary in general.
 
+This document gives a few implementation details, more information in the notebook howto.ipynb.
 ## Solving an Inverse Problem
 Given a forward operator $\mathbf{H}$ and some measurements $\mathbf{y}$, CRR-NNs are plugged into the variational problem
 

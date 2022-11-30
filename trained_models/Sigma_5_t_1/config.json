@@ -1,0 +1,20 @@
+{
+    "activation_params": {
+        "activation_fn": "linear_spline",
+        "differentiable_projection": true,
+        "knots_range": 0.1,
+        "monotonic": true,
+        "n_knots": 21,
+        "spline_init": "zero"
+    },
+    "net_params": {
+        "bias": false,
+        "channels": [
+            1,
+            8,
+            32
+        ],
+        "kernel_size": 7,
+        "padding": 3
+    }
+}
