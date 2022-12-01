@@ -4,20 +4,8 @@
         "differentiable_projection": true,
         "knots_range": 0.1,
         "monotonic": true,
-        "n_channels": 32,
         "n_knots": 21,
-        "nonexpansive": false,
         "spline_init": "zero"
-    },
-    "exp_name": "Sigma_5_ch_1_8_32_TV1e-2_R0.1_K7_K21_ZeroMeanFilters1_NoActiScaling_gd_2_2",
-    "logging_info": {
-        "epochs_per_image": 0.3333,
-        "epochs_per_val": 1,
-        "log_dir": "../trained_models/",
-        "log_imgs": false,
-        "log_iter": 1,
-        "log_params": false,
-        "save_epoch": 5
     },
     "net_params": {
         "bias": false,
@@ -26,49 +14,7 @@
             8,
             32
         ],
-        "groups": false,
         "kernel_size": 7,
         "padding": 3
-    },
-    "number_of_parameters": 13610,
-    "optimizer": {
-        "beta_1": 0.9,
-        "beta_2": 0.999,
-        "loss": "L1",
-        "lr_conv": 0.001,
-        "lr_lmbd": 0.05,
-        "lr_mu": 0.05,
-        "lr_spline_coefficients": 5e-05,
-        "lr_spline_scaling_coeffs": 0,
-        "type": "Adam"
-    },
-    "seed": 42,
-    "sigma": 5,
-    "train_dataloader": {
-        "batch_size": 128,
-        "num_workers": 1,
-        "shuffle": true,
-        "train_data_file": "data/preprocessed/train_BSD_40.h5"
-    },
-    "training_options": {
-        "constrain_lipschitz": true,
-        "epochs": 10,
-        "fixed_point_n_grad": 2,
-        "fixed_point_n_iter": 2,
-        "fixed_point_solver": "gd",
-        "scheduler": {
-            "gamma": 0.75,
-            "nb_steps": 10,
-            "use": true
-        },
-        "tv2_lmbda": 0.01,
-        "weight_decay": 0,
-        "weight_l1_penalty": 0
-    },
-    "val_dataloader": {
-        "batch_size": 1,
-        "num_workers": 1,
-        "shuffle": false,
-        "val_data_file": "data/preprocessed/test_BSD.h5"
     }
 }
