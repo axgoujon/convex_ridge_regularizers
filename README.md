@@ -33,4 +33,6 @@ In addition,
 
 Tuning $\lambda$ and $\mu$
 --------------
-In the [preprint](https://arxiv.org/pdf/2211.12461.pdf), we give a precise routine to tune both hyperparameters. Although tuning $\mu$ is important, it can be done manually in a coarse manner. Typically, increasing $\mu$ improves the performance, and after some point the results depend only marginally on $\mu$. Typical range for $\mu$ is [1, 200]. Nb: setting $\mu$ to a too large value yields a "less smooth" regularizer and convergence usually becomes slower.
+In the [preprint](https://arxiv.org/pdf/2211.12461.pdf) and the folder [hyperparameter_tuning](https://github.com/axgoujon/convex_ridge_regularizers/blob/hyperparameter_tuning/), we give a precise routine to tune both hyperparameters.
+
+Although tuning $\mu$ is important, it can be done manually in a coarse manner. Typically, increasing $\mu$ improves the performance, and after some point the results depend only marginally on $\mu$. Typical range for $\mu$ is [1, 200]. Nb: setting $\mu$ to a too large value yields a "less smooth" regularizer and convergence usually becomes slower.
