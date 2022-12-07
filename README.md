@@ -20,7 +20,7 @@ Solving an Inverse Problem
 --------------
 Given a forward operator $\mathbf{H}$ and some measurements $\mathbf{y}$, CRR-NNs are plugged into the variational problem
 
-<img src="https://latex.codecogs.com/svg.image?\mathrm{argmin}_{\mathbf{x}}&space;\|\mathbf{H}\mathbf{x}&space;-&space;\mathbf{y}\|_2^2&space;&plus;\lambda/\mu&space;R_{t,\sigma}(\mu\mathbf{x})." />
+<img src="https://latex.codecogs.com/svg.image?\mathrm{argmin}_{\mathbf{x}}&space;\frac{1}{2}\|\mathbf{H}\mathbf{x}&space;-&space;\mathbf{y}\|_2^2&space;&plus;\lambda/\mu&space;R_{t,\sigma}(\mu\mathbf{x})." />
 
 The regularizer $R_{t,\sigma}$ is smooth, and the optimization problem can be solved with any standard gradient-based method, e.g. accelerated gradient-descent. If $\mathbf{x}$ needs to be constrained, e.g. to be positive, the FISTA algorithm is well-suited. For these algorithms the following functions are useful:
 - `model.precise_lipschitz_bound()` to compute a bound on the Lipschitz constant of $\nabla R_{t,\sigma}$ and determine an admissible stepsize.
