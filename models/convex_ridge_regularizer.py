@@ -7,10 +7,21 @@ from models.linear_spline import LinearSpline
 
 
 class ConvexRidgeRegularizer(nn.Module):
-    def __init__(self, channels=[1, 64], kernel_size=3, padding=1, activation_params={"activation_fn": "relu"}):
-        
+    """Module to parametrize a CRR-NN model, mainly gradient-focused"""
+    def __init__(self, channels=[1, 8, 32], kernel_size=3, activation_params={"knots_range":0.1, "n_knots": 21}):
+        """
+        Parameters
+        ----------
+        channels : list of int
+            The list of channels from the input to output
+            e.g. [1, 8, 32] for 2 convolutional layers with 1 input channels, 32 output channels and 8 channels in between
+        kernel_size : int
+            The size of the kernel of all convolutional layers
+        activation_params : dict
+            The parameters of the activation function"""
         super().__init__()
 
+        padding = kernel_size // 2
         self.padding = padding
         self.channels = channels
 
@@ -24,38 +35,25 @@ class ConvexRidgeRegularizer(nn.Module):
 
         # activation functions
         self.activation_params = activation_params
-        self.use_linear_spline = (activation_params["activation_fn"] == "linear_spline")
 
-        if activation_params["activation_fn"] == "linear_spline":
-            activation_params["n_channels"] = channels[-1]
-            self.activation = LinearSpline(mode="conv", num_activations=channels[-1],
-                                    size=activation_params["n_knots"],
-                                    range_=activation_params["knots_range"],
-                                    monotonic_constraint=activation_params["monotonic"],
-                                    init=activation_params["spline_init"],
-                                    differentiable_projection=activation_params["differentiable_projection"])
+        activation_params["n_channels"] = channels[-1]
+        self.activation = LinearSpline(mode="conv", num_activations=channels[-1],
+                                size=activation_params["n_knots"],
+                                range_=activation_params["knots_range"])
                                     
-        elif activation_params["activation_fn"] == "relu":
-            self.activation = nn.ReLU()
-        elif activation_params["activation_fn"] == "leaky_relu":
-            self.activation = nn.LeakyReLU(0.2)
-        else:
-            raise ValueError('Need to provide a valid activation function')
-
         self.num_params = sum(p.numel() for p in self.parameters())
 
         # initialize random image for caching an estimate of the largest eigen vector for Lipschitz bound computation
         # the size matters little compare to number of iterations, so small patches makes training more efficient
-        # + the learning is carried on patches
+        # + a more precise computation is done at test time
         self.initializeEigen(size=20)
         
         # running estimate of Lipschitz
         self.L = nn.parameter.Parameter(data=torch.tensor(1.), requires_grad=False)
 
         print("---------------------")
-        print(f"Building a CRR-NN model with \n - {channels} channels \n - {activation_params['activation_fn']} activation functions")
-        if activation_params["activation_fn"] == "linear_spline":
-            print(f"  ({self.activation})")
+        print(f"Building a CRR-NN model with \n - {channels} channels \n splines parameters:")
+        print(f"  ({self.activation})")
         print("---------------------")
 
 
@@ -80,7 +78,6 @@ class ConvexRidgeRegularizer(nn.Module):
         y = self.activation(y)
         # transposed linear layer
         y = self.conv_layer.transpose(y)
-
         return(y)
 
     def grad(self, x):
@@ -101,19 +98,15 @@ class ConvexRidgeRegularizer(nn.Module):
 
     # regularization
     def TV2(self, include_weights=False):
-        if self.activation_params["activation_fn"] == "linear_spline":
-            return(self.activation.TV2())
-        else:
-            return(0)
+        return(self.activation.TV2())
 
     
     def precise_lipschitz_bound(self, n_iter=50, differentiable=False):
         with torch.no_grad():
             # vector with the max slope of each activation
-            if self.use_linear_spline:
-                slope_max = self.activation.slope_max
-                if slope_max.max().item() == 0:
-                    return(torch.tensor([0.], device = slope_max.device))
+            slope_max = self.activation.slope_max
+            if slope_max.max().item() == 0:
+                return(torch.tensor([0.], device = slope_max.device))
             # running eigen vector with largest eigen value estimate
             self.u = self.u.to(self.conv_layer.conv_layers[0].weight.device)
             u = self.u
@@ -124,8 +117,7 @@ class ConvexRidgeRegularizer(nn.Module):
                 # W u
                 u = self.conv_layer.convolutionNoBias(u)
                 # D' W u
-                if self.use_linear_spline:
-                    u = u * slope_max.view(1,-1,1,1)
+                u = u * slope_max.view(1,-1,1,1)
                 # WT D' W u
                 u = self.conv_layer.transpose(u)
                 # norm of u
@@ -137,9 +129,8 @@ class ConvexRidgeRegularizer(nn.Module):
             # W u
             u = self.conv_layer.convolutionNoBias(u)
             # D' W u
-            if self.use_linear_spline:
-                slope_max = self.activation.slope_max
-                u = u * slope_max.view(1,-1,1,1)
+            slope_max = self.activation.slope_max
+            u = u * slope_max.view(1,-1,1,1)
             # WT D' W u
             u = self.conv_layer.transpose(u)
             # norm of u
@@ -152,57 +143,92 @@ class ConvexRidgeRegularizer(nn.Module):
             self.u = u
             return(sigma_estimate)
 
-    def prune(self, tol=1e-4):
-        device = self.conv_layer.conv_layers[0].weight.device
-        # 1. Convert multi-convolutions into single convolutions
-        # 1.1 size of the single kernel
-        new_padding = sum([conv.kernel_size[0]//2 for conv in self.conv_layer.conv_layers])
-        new_kernel_size = 2*new_padding + 1
-
-        # 1.2 Find new kernels <=> impulse responses
-        impulse = torch.zeros((1, 1, new_kernel_size , new_kernel_size), device=device, requires_grad=False)
-        impulse[0, 0, new_kernel_size//2, new_kernel_size//2] = 1
-
-        new_kernel = self.conv_layer.convolutionNoBias(impulse)
-
-        # 2. Determine the channels to prune, based on
-        #     - impulse response magnitude
-        kernel_norm = torch.sum(new_kernel**2, dim=(0, 2, 3))
-
-        #     - TV2 of associated activation function
-        coeff = self.activation.projected_coefficients
-        slopes = (coeff[:,1:] - coeff[:,:-1])/self.activation.grid.item()
-        tv2 = torch.sum(torch.abs(slopes[:,1:-1]), dim=1)
+    @property
+    def device(self):
+        return(self.conv_layer.conv_layers[0].weight.device)
+    
+    def prune(self, tol=1e-4, prune_filters=True, collapse_filters=True, change_splines_to_clip=False):
+        """Prune the model by (only for testing):
+            - removing filters with small weights/almost vanishing activations
+            - collapsing the remaining filters into a single convolution
+            - changing the splines to clipped linear functions
+            
+            These changes improve the computational efficiency of the model but might alter a bit the performances"""
         
-        # criterion to keep a (filter, activation) tuple
-        weight = tv2 * kernel_norm
+        device = self.conv_layer.conv_layers[0].weight.device
 
-        l_keep = torch.where(weight > tol)[0]
-        print("---------------------")
-        print(f" PRUNNING \n Found {len(l_keep)} filters with non-vanishing potential functions")
-        print("---------------------")
+        if collapse_filters:
+            # 1. Convert multi-convolutions into single convolutions
+            # 1.1 size of the single kernel
+            new_padding = sum([conv.kernel_size[0]//2 for conv in self.conv_layer.conv_layers])
+            new_kernel_size = 2*new_padding + 1
+
+            # 1.2 Find new kernels <=> impulse responses
+            impulse = torch.zeros((1, 1, new_kernel_size , new_kernel_size), device=device, requires_grad=False)
+            impulse[0, 0, new_kernel_size//2, new_kernel_size//2] = 1
+
+            new_kernel = self.conv_layer.convolutionNoBias(impulse)
+
+           
+            # 2. Collapse convolutions
+            new_conv_layer = MultiConv2d(channels=[1, new_kernel.shape[1]], kernel_size=self.channels[-1], padding=new_padding)
+
+            new_conv_layer.conv_layers[0].parametrizations.weight.original.data = new_kernel.permute(1, 0, 2, 3)
+
+            self.conv_layer = new_conv_layer
+            self.channels = [1, new_kernel.shape[1]]
+            self.padding = new_padding
+
+        if prune_filters:
+            # 1. Remove non significant filters
+            # 1.1 size of the single kernel
+            new_padding = sum([conv.kernel_size[0]//2 for conv in self.conv_layer.conv_layers])
+            new_kernel_size = 2*new_padding + 1
+
+            # 1.2 Find new kernels <=> impulse responses
+            impulse = torch.zeros((1, 1, new_kernel_size , new_kernel_size), device=device, requires_grad=False)
+            impulse[0, 0, new_kernel_size//2, new_kernel_size//2] = 1
+
+            new_kernel = self.conv_layer.convolutionNoBias(impulse)
+
+            # 2. Determine the channels to prune, based on
+            #     - impulse response magnitude
+            kernel_norm = torch.sum(new_kernel**2, dim=(0, 2, 3))
+
+            #     - TV2 of associated activation function
+            coeff = self.activation.projected_coefficients
+            slopes = (coeff[:,1:] - coeff[:,:-1])/self.activation.grid.item()
+            tv2 = torch.sum(torch.abs(slopes[:,1:-1]), dim=1)
+            
+            # criterion to keep a (filter, activation) tuple
+            weight = tv2 * kernel_norm
+
+            l_keep = torch.where(weight > tol)[0]
+            print("---------------------")
+            print(f" PRUNNING \n Found {len(l_keep)} filters with non-vanishing potential functions")
+            print("---------------------")
 
 
-        # 3. Prune spline coefficients
-        new_spline_coeff = torch.clone(self.activation.coefficients_vect.view(self.activation.num_activations, self.activation.size)[l_keep, :].contiguous().view(-1))
-        self.activation.coefficients_vect.data = new_spline_coeff
-        self.activation.num_activations = len(l_keep)
+            # 3. Prune spline coefficients
+            new_spline_coeff = torch.clone(self.activation.coefficients_vect.view(self.activation.num_activations, self.activation.size)[l_keep, :].contiguous().view(-1))
+            self.activation.coefficients_vect.data = new_spline_coeff
+            self.activation.num_activations = len(l_keep)
 
-        self.activation.grid_tensor = torch.linspace(-self.activation.range_, self.activation.range_, self.activation.size).expand((self.activation.num_activations, self.activation.size))
+            self.activation.grid_tensor = torch.linspace(-self.activation.range_, self.activation.range_, self.activation.size).expand((self.activation.num_activations, self.activation.size))
 
-        self.activation.init_zero_knot_indexes()
+            self.activation.init_zero_knot_indexes()
 
-        # 4. Prune convolutions
-        new_conv_layer = MultiConv2d(channels=[1, len(l_keep)], kernel_size=self.channels[-1], padding=new_padding)
+            # 4. Prune convolutions
+            self.conv_layer.conv_layers[-1].parametrizations.weight.original.data = self.conv_layer.conv_layers[-1].parametrizations.weight.original.data[l_keep, :, :, :].permute(0, 1, 2, 3)
 
-        new_conv_layer.conv_layers[0].parametrizations.weight.original.data = new_kernel[:, l_keep, :, :].permute(1, 0, 2, 3)
+            self.channels[-1] = len(l_keep)
+            print(self.conv_layer.conv_layers[-1].weight.shape)
 
-        self.conv_layer = new_conv_layer
-        self.channels = [1, len(l_keep)]
-        self.padding = new_padding
-
+        if change_splines_to_clip:
+            self.activation = self.activation.get_clip_equivalent()
         # 5. Update number of parameters
         self.num_params = sum(p.numel() for p in self.parameters())
+        print(f" Number of parameters after prunning: {self.num_params}")
 
 
 def norm(u):

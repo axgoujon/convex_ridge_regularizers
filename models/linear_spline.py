@@ -47,7 +47,7 @@ class LinearSpline_Func(torch.autograd.Function):
     input.
     """
     @staticmethod
-    def forward(ctx, x, coefficients_vect, grid, zero_knot_indexes, size, even):
+    def forward(ctx, x, coefficients_vect, grid, zero_knot_indexes, size, even, train=True):
 
         # The value of the spline at any x is a combination 
         # of at most two coefficients
@@ -165,7 +165,7 @@ class LinearSpline(ABC, nn.Module):
         monotonic_constraint (bool): Constrain the actiation to be monotonic increasing
     """
 
-    def __init__(self, mode, num_activations, size, range_, init, monotonic_constraint, differentiable_projection=True, **kwargs):
+    def __init__(self, mode, num_activations, size, range_, init="zero", monotonic_constraint=True, **kwargs):
 
         if mode not in ['conv', 'fc']:
             raise ValueError('Mode should be either "conv" or "fc".')
@@ -187,7 +187,7 @@ class LinearSpline(ABC, nn.Module):
         self.init_zero_knot_indexes()
         self.D2_filter = Tensor([1, -2, 1]).view(1, 1, 3).div(self.grid)
         self.monotonic_constraint = monotonic_constraint
-        self.differentiable_projection = differentiable_projection
+
         self.integrated_coeff = None
 
         # tensor with locations of spline coefficients
@@ -215,9 +215,7 @@ class LinearSpline(ABC, nn.Module):
     @property
     def projected_coefficients(self):
         """ B-spline coefficients projected to meet the constraint. """
-        if not self.differentiable_projection:
-            return self.coefficients
-        elif self.monotonic_constraint:
+        if self.monotonic_constraint:
             return self.monotonic_coefficients
         else:
             return self.coefficients
@@ -249,6 +247,14 @@ class LinearSpline(ABC, nn.Module):
     def monotonic_coefficients_vect(self):
         """Projection of B-spline coefficients such that they are increasing"""
         return self.monotonic_coefficients.contiguous().view(-1)
+
+
+    def cache_constraint(self):
+        """ Update the coeffcients to the constrained one, for post training """
+        if self.monotonic_constraint:
+            with torch.no_grad():
+                self.coefficients_vect.data = self.monotonic_coefficients_vect.data
+                self.monotonic_constraint = False
 
 
     def forward(self, x):
@@ -374,5 +380,53 @@ class LinearSpline(ABC, nn.Module):
         slope = (coeff[:,1:] - coeff[:,:-1])/self.grid.item()
         slope_max = torch.max(slope, dim=1)[0]
         return(slope_max)
+
+    # tranform the splines into clip functions
+    def get_clip_equivalent(self):
+        """ Express the splines as sum of two ReLUs
+         Only relevant for splines that look alike the cpli function """
+        coeff_proj = self.projected_coefficients.clone().detach()
+        slopes = (coeff_proj[:,1:] - coeff_proj[:,:-1])
+        slopes_change = slopes[:,1:] - slopes[:,:-1]
+
+        i1 = torch.max(slopes_change, dim=1)
+        i2 = torch.min(slopes_change, dim=1)
+
+        i0 = torch.arange(0, coeff_proj.shape[0]).to(coeff_proj.device)
+
+        self.grid_tensor = self.grid_tensor.to(coeff_proj.device)
+        x1 = self.grid_tensor[i0, i1[1] + 1].view(1,-1,1,1)
+        y1 = coeff_proj[i0, i1[1] + 1].view(1,-1,1,1)
+
+        x2 = self.grid_tensor[i0, i2[1] + 1].view(1,-1,1,1)
+        y2 = coeff_proj[i0, i2[1] + 1].view(1,-1,1,1)
+
+        slopes = ((y2 - y1)/(x2 - x1)).view(1,-1,1,1)
+
+        cl = clip_activation(x1, x2, y1, slopes)
+
+        return(cl)
+
+
+class clip_activation(nn.Module):
+    def __init__(self, x1, x2, y1, slopes):
+        super().__init__()
+        self.x1 = x1
+        self.x2 = x2
+        self.slopes = torch.nan_to_num(slopes)
+        self.y1 = y1
+
+    def forward(self, x):
+        return(self.slopes * (torch.relu(x - self.x1) - torch.relu(x - self.x2)) + self.y1)
+
+    def integrate(self, x):
+        return(self.slopes/2 * ((torch.relu(x - self.x1)**2 - torch.relu(x - self.x2)**2) + self.y1 * x))
+    
+    @property
+    def slope_max(self):
+        slope_max = torch.max(self.slopes, dim=1)[0]
+        return(slope_max)
+    
+    
 
 

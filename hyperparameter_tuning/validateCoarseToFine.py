@@ -1,9 +1,41 @@
 import numpy as np
-import math
 import pandas as pd
 
 class ValidateCoarseToFine():
+    """Class to perform a coarse-to-fine hyperparameter tuning"""
     def __init__(self, score, dir_name, exp_name, p1_init=1, p2_init=10, gamma1=4, gamma2=4, decay_factor=0.5, grid_size=3, freeze_p2=False, verbose=True, gamma_stop=1.01, p1_max=float('inf'), p2_max=float('inf')):
+        """ Parameters
+        ----------
+        score: function
+            function that takes as input the parameters and return a tuple (psnr, ssim, niter) corresponding to the average metrics over the validation set of a method. Nb: if freeze_p2 is True, the function should take only one parameter
+        dir_name: string
+            directory where to store the results
+        exp_name: string
+            name of the experiment to store the results
+        p1_init: float
+            initial value of the first parameter
+        p2_init: float
+            initial value of the second parameter
+        gamma1: float
+            initial multiplicative grid scale for the first parameter
+        gamma2: float
+            initial multiplicative grid scale for the second parameter
+        decay_factor: float
+            multiplicative factor to update the grid scale when going finer
+        grid_size: int
+            size of the local grid explore the performace of the method
+        freeze_p2: bool
+            if True, the second parameter is not optimized => faster procedure
+        verbose: bool
+
+        gamma_stop: float
+            if gamma1 < gamma_stop and gamma2 < gamma_stop, the procedure stops. Should be > 1
+        p1_max: float
+            upper bound for the first parameter
+        p2_max: float
+            upper bound for the second parameter
+        """
+        
 
         # the score function takes as input the parameters p1 (and possibily p2) and return tuple (psnr, ssim, niter)
         def score_modified(p1, p2):
@@ -17,7 +49,7 @@ class ValidateCoarseToFine():
         # dir to store continuously the results
         self.dir_name = dir_name
         # name of the experiment
-        self.exp_name = f"ValidationScores_{exp_name}"
+        self.exp_name = f"validation_scores_{exp_name}"
 
         # upper-bound, if any
         self.p1_max = p1_max
@@ -101,8 +133,8 @@ class ValidateCoarseToFine():
                     
         
                 if self.verbose:
-                    print(f"PSNR {psnr_t:.3f} __ running max {self.scores['psnr'].max():.3f}")
-                    print(f"SSIM {ssim_t:.3f} __ running max {self.scores['ssim'].max():.3f}")
+                    print(f"\n p1={p1:.2f}, p2={p2:.2f}, psnr={psnr_t:.2f}dB (best {self.scores['psnr'].max():.2f}dB)")
+                    #print(f"SSIM {ssim_t:.3f} __ running max {self.scores['ssim'].max():.3f}")
     
     def save_scores(self):
         self.scores.to_csv(f"{self.dir_name}/{self.exp_name}.csv")
@@ -127,6 +159,7 @@ class ValidateCoarseToFine():
             self.p1 = p1_new_center*self.gamma1**(-(self.grid_size//2))
             print(f"new p1 {self.p1}")
             print(f"new gamma1 {self.gamma1}")
+        self.p1 = min(self.p1, self.p1_max)
 
 
         if not self.freeze_p2:
@@ -147,7 +180,7 @@ class ValidateCoarseToFine():
                 self.p2 = p2_new_center*self.gamma2**(-(self.grid_size//2))
                 print(f"new p2 {self.p2}")
                 print(f"new gamma2 {self.gamma2}")
-
+            self.p2 = min(self.p2, self.p2_max)
 
     def run(self):
         if self.freeze_p2:

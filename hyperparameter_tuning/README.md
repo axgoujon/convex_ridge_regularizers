@@ -12,7 +12,11 @@ How to
 The goal is to tune two parameters (p1,p2), for e.g. $(\lambda,\mu)$.
 
  **Requirements**
- The routine requires a score function `score(p1, p2)`. Given the values of p1 and p2, this function returns the average performance on the validation set, in the form `(psnr, ssim, niter)`. **Nb:** as implemented, the optimization is based only on the PSNR, the SSIM and the number of iterations to converge are used only for logging. Hence their value does not modify the outcome of the algorithm.
+ The routine requires a score function `score(p1, p2)`. This function takes the hyperparameters as input and should return a performance metric. Typically, this function loops over the validation set, solve the inverse problem for each image, then return the average performance in the form `(psnr, ssim, niter)`.
+ 
+ **Nb 1:** as implemented, the optimization is based only on the PSNR, the SSIM and the number of iterations to converge are used only for logging. Hence their value does not modify the outcome of the algorithm and you could put any other metric.
+
+**Nb 2:** if optimizing a single parameter (```freeze_p2=True```), `score(p1)` is expected to only take a single input.
 
  **Usage**
  ```python
