@@ -18,6 +18,8 @@ class Trainer:
     """
     """
     def __init__(self, config, seed, device):
+        global ssim
+        ssim = ssim.to(device)
         self.config = config
         self.seed = seed
         self.device = device
@@ -25,9 +27,8 @@ class Trainer:
 
 
         # datasets and dataloaders
-        train_dataset = dataset.BSD500(config['train_dataloader']['train_data_file'])
-        val_dataset = dataset.BSD500(config['val_dataloader']['val_data_file'])
-       
+        train_dataset = dataset.H5PY(config['train_dataloader']['train_data_file'])
+        val_dataset = dataset.H5PY(config['val_dataloader']['val_data_file'])
         self.batch_size = config["train_dataloader"]["batch_size"]
 
         self.train_dataloader = DataLoader(train_dataset, batch_size=config["train_dataloader"]["batch_size"], shuffle=config["train_dataloader"]["shuffle"], num_workers=config["train_dataloader"]["num_workers"], drop_last=True)
@@ -85,10 +86,16 @@ class Trainer:
         self.optimizers.append(optimizer_conv)
 
         # activation parameters
-        params_activations = [model.activation.coefficients_vect]
-        lr_activations = self.config["optimizer"]["lr_spline_coefficients"]
-        optimizer_activations = optimizer(params_activations, lr=lr_activations)
-        self.optimizers.append(optimizer_activations)
+        if self.model.use_splines:
+            params_activations = [model.activation.coefficients_vect]
+            lr_activations = self.config["optimizer"]["lr_spline_coefficients"]
+            optimizer_activations = optimizer(params_activations, lr=lr_activations)
+            self.optimizers.append(optimizer_activations)
+        else:
+            params_bias = [model.bias]
+            lr_bias= self.config["optimizer"]["lr_spline_coefficients"]
+            optimizer_bias = optimizer(params_bias, lr=lr_bias)
+            self.optimizers.append(optimizer_bias)  
 
         # reg strenght learnt
         lr_lmbd = self.config["optimizer"]["lr_lmbd"]
@@ -148,10 +155,11 @@ class Trainer:
             # t-step denoiser
             output = self.denoise(noisy_data, t_steps=self.config["training_options"]["t_steps"])
 
-            data_fidelity = (self.criterion(output, data))/(data.shape[0])
+            # data fidelity normalized
+            data_fidelity = (self.criterion(output, data))/(data.shape[0]) * 40 * 40 / data.shape[2] / data.shape[3]
 
             # regularization of the splines to promote fewer breakpoints
-            if self.config['training_options']['tv2_lmbda'] > 0:
+            if self.config['training_options']['tv2_lmbda'] > 0 and self.model.use_splines:
                 tv2 = self.model.TV2()
                 regularization = self.config['training_options']['tv2_lmbda'] * self.sigma * tv2
             else:
@@ -165,11 +173,10 @@ class Trainer:
             log['lipschitz'] = self.model.L.item()
             log['lmbd'] = (self.model.lmbd_transformed).item()
             log['mu'] = (self.model.mu_transformed).item()
-            if self.config['training_options']['tv2_lmbda'] > 0:
+            if self.config['training_options']['tv2_lmbda'] > 0 and self.model.use_splines:
                 log['tv2'] = tv2.item()
 
             self.optimizer_step()
-
             self.wrt_step = (epoch) * len(self.train_dataloader) + batch_idx
             self.write_scalars_tb(log)
 

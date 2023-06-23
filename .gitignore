@@ -1,2 +1,8 @@
 training/data/preprocessed/
 bin/
+**/mayo_data/
+**/recon/
+**/data/data_sets/
+**/__pycache__/
+**/data_sets*
+**/*tar.gz

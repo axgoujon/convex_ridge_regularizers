@@ -37,9 +37,21 @@ class ConvexRidgeRegularizer(nn.Module):
         self.activation_params = activation_params
 
         activation_params["n_channels"] = channels[-1]
-        self.activation = LinearSpline(mode="conv", num_activations=channels[-1],
+
+
+        if "name" not in activation_params:
+            activation_params["name"] = "spline"
+
+        if activation_params["name"]== "ReLU":
+            self.activation = nn.ReLU()
+            self.bias = nn.parameter.Parameter(data=torch.zeros((1, channels[-1], 1, 1)), requires_grad=True)
+            self.use_splines = False
+            self.lmbd.data *= 1e-3
+        else:
+            self.activation = LinearSpline(mode="conv", num_activations=activation_params["n_channels"],
                                 size=activation_params["n_knots"],
                                 range_=activation_params["knots_range"])
+            self.use_splines = True
                                     
         self.num_params = sum(p.numel() for p in self.parameters())
 
@@ -63,7 +75,7 @@ class ConvexRidgeRegularizer(nn.Module):
     @property
     def lmbd_transformed(self):
         # ensure lmbd is nonzero positive
-        return(torch.clip(self.lmbd, 0.01, None))
+        return(torch.clip(self.lmbd, 0.0001, None))
 
     @property
     def mu_transformed(self):
@@ -75,6 +87,8 @@ class ConvexRidgeRegularizer(nn.Module):
         # linear layer (a multi-convolution)
         y = self.conv_layer(x)
         # activation
+        if not self.use_splines:
+            y = y + self.bias
         y = self.activation(y)
         # transposed linear layer
         y = self.conv_layer.transpose(y)
@@ -98,15 +112,20 @@ class ConvexRidgeRegularizer(nn.Module):
 
     # regularization
     def TV2(self, include_weights=False):
-        return(self.activation.TV2())
+        if self.use_splines:
+            return(self.activation.TV2(include_weights=include_weights))
+        else:
+            return(0)
 
     
     def precise_lipschitz_bound(self, n_iter=50, differentiable=False):
         with torch.no_grad():
             # vector with the max slope of each activation
-            slope_max = self.activation.slope_max
-            if slope_max.max().item() == 0:
-                return(torch.tensor([0.], device = slope_max.device))
+            if self.use_splines:
+                slope_max = self.activation.slope_max
+                if slope_max.max().item() == 0:
+                    return(torch.tensor([0.], device = slope_max.device))
+           
             # running eigen vector with largest eigen value estimate
             self.u = self.u.to(self.conv_layer.conv_layers[0].weight.device)
             u = self.u
@@ -115,9 +134,10 @@ class ConvexRidgeRegularizer(nn.Module):
                 # normalization
                 u = normalize(u)
                 # W u
-                u = self.conv_layer.convolutionNoBias(u)
+                u = self.conv_layer.forward(u)
                 # D' W u
-                u = u * slope_max.view(1,-1,1,1)
+                if self.use_splines:
+                    u = u * slope_max.view(1,-1,1,1)
                 # WT D' W u
                 u = self.conv_layer.transpose(u)
                 # norm of u
@@ -127,10 +147,12 @@ class ConvexRidgeRegularizer(nn.Module):
         if differentiable:
             u = normalize(u)
             # W u
-            u = self.conv_layer.convolutionNoBias(u)
+            u = self.conv_layer.forward(u)
             # D' W u
-            slope_max = self.activation.slope_max
-            u = u * slope_max.view(1,-1,1,1)
+            if self.use_splines:
+                slope_max = self.activation.slope_max
+                u = u * slope_max.view(1,-1,1,1)
+            
             # WT D' W u
             u = self.conv_layer.transpose(u)
             # norm of u
@@ -147,7 +169,7 @@ class ConvexRidgeRegularizer(nn.Module):
     def device(self):
         return(self.conv_layer.conv_layers[0].weight.device)
     
-    def prune(self, tol=1e-4, prune_filters=True, collapse_filters=True, change_splines_to_clip=False):
+    def prune(self, tol=1e-4, prune_filters=True, collapse_filters=False, change_splines_to_clip=False):
         """Prune the model by (only for testing):
             - removing filters with small weights/almost vanishing activations
             - collapsing the remaining filters into a single convolution
@@ -167,7 +189,7 @@ class ConvexRidgeRegularizer(nn.Module):
             impulse = torch.zeros((1, 1, new_kernel_size , new_kernel_size), device=device, requires_grad=False)
             impulse[0, 0, new_kernel_size//2, new_kernel_size//2] = 1
 
-            new_kernel = self.conv_layer.convolutionNoBias(impulse)
+            new_kernel = self.conv_layer.convolution(impulse)
 
            
             # 2. Collapse convolutions
@@ -189,7 +211,7 @@ class ConvexRidgeRegularizer(nn.Module):
             impulse = torch.zeros((1, 1, new_kernel_size , new_kernel_size), device=device, requires_grad=False)
             impulse[0, 0, new_kernel_size//2, new_kernel_size//2] = 1
 
-            new_kernel = self.conv_layer.convolutionNoBias(impulse)
+            new_kernel = self.conv_layer.convolution(impulse)
 
             # 2. Determine the channels to prune, based on
             #     - impulse response magnitude
@@ -222,7 +244,6 @@ class ConvexRidgeRegularizer(nn.Module):
             self.conv_layer.conv_layers[-1].parametrizations.weight.original.data = self.conv_layer.conv_layers[-1].parametrizations.weight.original.data[l_keep, :, :, :].permute(0, 1, 2, 3)
 
             self.channels[-1] = len(l_keep)
-            print(self.conv_layer.conv_layers[-1].weight.shape)
 
         if change_splines_to_clip:
             self.activation = self.activation.get_clip_equivalent()

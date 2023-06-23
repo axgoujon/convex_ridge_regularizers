@@ -174,7 +174,6 @@ class LinearSpline(ABC, nn.Module):
                             'positive integer...')
 
         super().__init__()
-
         self.mode = mode
         self.size = int(size)
         self.even = self.size % 2 == 0
@@ -309,7 +308,7 @@ class LinearSpline(ABC, nn.Module):
         coeff = self.projected_coefficients
         
         
-        # extrapolate assuming zero slopes at both ends
+        # extrapolate assuming zero slopes of the linear spline at both ends
         coeff_int = torch.cat((coeff[:, 0:1], coeff, coeff[:, -1:]), dim=1)
 
         # integrate to obtain
@@ -333,6 +332,8 @@ class LinearSpline(ABC, nn.Module):
             self.integrated_coeff = self.integrated_coeff.to(x.device)
 
         x = Quadratic_Spline_Func.apply(x - self.grid.to(x.device), self.integrated_coeff, self.grid.to(x.device), self.zero_knot_indexes_integrated.to(x.device), (self.size + 2))
+
+        
 
         return(x)
 

@@ -1,0 +1,39 @@
+{
+    "activation_fn_params": {
+        "activation_type": "prelu",
+        "groupsort_groupsize": 2,
+        "lipschitz_constrained": true,
+        "lmbda": 0.0,
+        "prelu_init": -1,
+        "spline_init": "identity",
+        "spline_range": 0.1,
+        "spline_size": 51
+    },
+    "exp_name": "PReLU_layer_9_channel_64_spectral_norm_sigma_5",
+    "log_dir": "denoising_exps/sigma_5",
+    "net_params": {
+        "bias": true,
+        "kernel_size": 3,
+        "num_channels": 64,
+        "num_layers": 9,
+        "padding_mode": "zeros",
+        "projection": "spectral_norm",
+        "signal_size": 256,
+        "lipschitz_constant": 1,
+        "weight_initialization": "identity"
+    },
+    "optimizer": {
+        "lr_spline_coeffs": -1,
+        "lr_spline_scaling_coeffs": -1,
+        "lr_weights": 4e-05
+    },
+    "seed": 42,
+    "sigma": 5,
+    "training_options": {
+        "batch_size": 4,
+        "epochs": 20,
+        "num_workers": 1,
+        "train_data_file": "data/BSD500/train.h5",
+        "val_data_file": "data/BSD500/val.h5"
+    }
+}

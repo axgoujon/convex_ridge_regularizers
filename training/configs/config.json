@@ -1,12 +1,14 @@
 {
     "activation_params": {
         "knots_range": 0.1,
-        "n_knots": 21
+        "n_channels": 56,
+        "n_knots": 21,
+        "name": "spline"
     },
-    "exp_name": "Test_Sigma_5_t1",
+    "exp_name": "Sigma_25_t_1",
     "logging_info": {
         "epochs_per_val": 1,
-        "log_dir": "../trained_models/",
+        "log_dir": "../trained_models/test",
         "save_epoch": 5
     },
     "net_params": {
@@ -17,33 +19,34 @@
         ],
         "kernel_size": 7
     },
+    "number_of_parameters": 32930,
     "optimizer": {
         "lr_conv": 0.001,
         "lr_lmbd": 0.05,
         "lr_mu": 0.05,
         "lr_spline_coefficients": 5e-05
     },
-    "sigma": 5,
+    "sigma": 25,
     "train_dataloader": {
         "batch_size": 128,
         "num_workers": 1,
         "shuffle": true,
-        "train_data_file": "data/preprocessed/train_BSD_40.h5"
+        "train_data_file": "data/preprocessed/BSD/train.h5"
     },
     "training_options": {
         "epochs": 10,
-        "t_steps": 1,
         "lr_scheduler": {
             "gamma": 0.75,
             "nb_steps": 10,
             "use": true
         },
-        "tv2_lmbda": 2e-3
+        "t_steps": 1,
+        "tv2_lmbda": 0.002
     },
     "val_dataloader": {
         "batch_size": 1,
         "num_workers": 1,
         "shuffle": false,
-        "val_data_file": "data/preprocessed/val_BSD.h5"
+        "val_data_file": "data/preprocessed/BSD/validation.h5"
     }
 }

@@ -41,7 +41,7 @@ These denoisers are made of $t$ iterations of gradient descent and directly corr
 - on the stepsize rule used for the partial gradient descent scheme.
     - this rule should be consistent for training and testing
     - whether the denoiser is **provably non-expansive** or not depends on this rule, it is subtle => see paper for details.
-    (nb: by default the $t$-step denoiser is non-expansive for $t=1, +\infty$ but not necessarily for $2\leq t<+\infty$. If non-expansive denoiser is needed for $2\leq t<+\infty$, you need to retrain and before edit the `tStepDenoiser` routine in `models/utils.py`, the details are given as comments in the code.)
+    (nb: by default the $t$-step denoiser is non-expansive for $t=1, +\infty$ but not necessarily for $1<t<+\infty$. If non-expansive denoiser is needed for $1<t<+\infty$, you need to retrain and before edit the `tStepDenoiser` routine in `models/utils.py`, the details are given as comments in the code.)
 
 
 # Computational Speed

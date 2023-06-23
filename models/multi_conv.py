@@ -12,7 +12,7 @@ class MultiConv2d(nn.Module):
         This was found helpful at training, especailly to be able to
         train convolutional layers with large kernel size
     """
-    def __init__(self, channels, kernel_size=3, padding=1, bias=False):
+    def __init__(self, channels, kernel_size=3, padding=1):
         """
         Parameters
         ----------
@@ -33,24 +33,22 @@ class MultiConv2d(nn.Module):
         # convolutionnal layers
         self.conv_layers = nn.ModuleList()
         for i in range(len(channels) - 1):
-                self.conv_layers.append(nn.Conv2d(in_channels=channels[i], out_channels=channels[i+1], kernel_size=kernel_size, padding=padding, bias=bias))
-                P.register_parametrization(self.conv_layers[-1], "weight", ZeroMean())
-        
+            self.conv_layers.append(nn.Conv2d(in_channels=channels[i], out_channels=channels[i+1], kernel_size=kernel_size, padding=self.padding, bias=False))
+            P.register_parametrization(self.conv_layers[-1], "weight", ZeroMean())
+       
         # scale the filters to ensure spectral norm of one at init
         self.initSN()
 
+      
+
     def forward(self, x):
         return(self.convolution(x))
-
+    
     def convolution(self, x):
         for conv in self.conv_layers:
-            x = nn.functional.conv2d(x, conv.weight, padding=self.padding)
+            x = nn.functional.conv2d(x, conv.weight, padding=self.padding, dilation=conv.dilation)
         return(x)
 
-    def convolutionNoBias(self, x):
-        for conv in self.conv_layers:
-            x = nn.functional.conv2d(x, conv.weight, padding=self.padding)
-        return(x)
 
     def transpose(self, x):
         """Transpose of the linear operation.
@@ -61,6 +59,7 @@ class MultiConv2d(nn.Module):
             # x = nn.functional.conv2d(x.flip(2,3), conv.weight.permute(1, 0, 2, 3), padding=self.padding).flip(2, 3)
             weight = conv.weight
             x = nn.functional.conv_transpose2d(x, weight, padding=conv.padding, groups=conv.groups, dilation=conv.dilation)
+
         return(x)
     
     def spectral_norm(self, n_power_iterations=10, size=40):
@@ -68,7 +67,7 @@ class MultiConv2d(nn.Module):
         with torch.no_grad():
             for _ in range(n_power_iterations):
                 # In this loop we estimate the eigen vector u corresponding to the largest eigne value of W^T W
-                v = normalize(self.convolutionNoBias(u))
+                v = normalize(self.convolution(u))
                 u = normalize(self.transpose(v))
                 if n_power_iterations > 0:
                     u = u.clone()
@@ -82,7 +81,21 @@ class MultiConv2d(nn.Module):
         with torch.no_grad():
             cur_sn = self.spectral_norm()
             for conv in self.conv_layers:
-                conv.weight.data = conv.weight.data/(cur_sn**(1/len(self.conv_layers)))   
+                conv.weight.data = conv.weight.data/(cur_sn**(1/len(self.conv_layers)))
+
+    def checkTranpose(self):
+        """Check if the transpose is correctly implemented"""
+        x = torch.randn((1, 1, 40, 40), device=self.conv_layers[0].weight.device)
+        Hx = self.forward(x)
+        y = torch.randn((1, Hx.shape[1], 40, 40), device=self.conv_layers[0].weight.device)
+
+        Hty = self.transpose(y)
+
+
+        v1 = torch.sum(Hx * y)
+        v2 = torch.sum(x * Hty)
+
+        print("tranpose check", torch.max(torch.abs(v1 - v2))) 
 
     
 

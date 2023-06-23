@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 from torchmetrics import StructuralSimilarityIndexMeasure 
 from torchmetrics.functional import peak_signal_noise_ratio as psnr
 
-ssim = StructuralSimilarityIndexMeasure()
+
 
 import os
 import sys
@@ -17,13 +17,17 @@ import pandas as pd
 torch.set_num_threads(4)
 torch.manual_seed(0)
 
-val_dataset = dataset.BSD500("../training/data/preprocessed/test_BSD.h5")
+val_dataset = dataset.H5PY("../training/data/preprocessed/BSD/test.h5")
 val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False)
 
 def test(model, sigma, t):
     device = model.device
     psnr_val = torch.zeros(len(val_dataloader))
     ssim_val = torch.zeros(len(val_dataloader))
+
+    ssim = StructuralSimilarityIndexMeasure()
+
+    ssim = ssim.to(device)
   
     for idx, im in enumerate(val_dataloader):
         im = im.to(device)
@@ -62,6 +66,7 @@ if __name__=="__main__":
     for t in list_t:
         
         exp_name = f"{exp_n}_t_{t}"
+
         print(f"**** Testing model ***** {exp_name}")
 
         model = utils.load_model(exp_name, device=device)
