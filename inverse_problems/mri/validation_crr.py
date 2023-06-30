@@ -16,7 +16,7 @@ p1_init = 0.5
 
 tol = 5e-6
 max_iter = 3000
-gamma_stop = 1.1
+gamma_stop = 1.1 # precision of the grid search. 1.1. means that when consecutive values of parameters validated are within ~10% of each other the validation stops. Increase if validation too long/too fine.
 
 if __name__ == "__main__":
     # argpars
@@ -25,6 +25,7 @@ if __name__ == "__main__":
 
     device = parser.parse_args().device
 
+    # models to validate
 
     EXP_NAMES = ['MRI_Sigma_5_t_10_K11',  'MRI_Sigma_25_t_10_K11']
     DATA_TYPES = ['pd', 'pdfs']

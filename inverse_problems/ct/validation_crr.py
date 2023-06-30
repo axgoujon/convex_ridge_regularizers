@@ -23,30 +23,14 @@ if __name__ == "__main__":
 
     device = parser.parse_args().device
 
+    # measurement noise levels, corresponding data set must be made before 
     NOISE_LEVELS = [0.5, 1.0, 2.0]
 
-    EXP_NAMES = ['CT_Sigma_5_t_10', 'CT_Sigma_25_t_10', 'Sigma_25_t_1',  'Sigma_25_t_10', 'Sigma_25_t_50', 'Sigma_5_t_1', 'Sigma_5_t_10', 'Sigma_5_t_50']
+    # CRR-NN models to validate
 
-    #EXP_NAMES = EXP_NAMES[0:4]
-    EXP_NAMES = EXP_NAMES[4:]
-    # opt = 3
+    # full list ['CT_Sigma_5_t_10', 'CT_Sigma_25_t_10', 'Sigma_25_t_1',  'Sigma_25_t_10', 'Sigma_25_t_50', 'Sigma_5_t_1', 'Sigma_5_t_10', 'Sigma_5_t_50']
+    EXP_NAMES = ['CT_Sigma_5_t_10']
 
-    # if opt == 0:
-    #     NOISE_LEVELS = [1.0]
-    #     EXP_NAMES = ['CT_Sigma_5_t_10', 'CT_Sigma_25_t_10', 'Sigma_25_t_1',  'Sigma_25_t_10']
-    # if opt == 1:
-    #     NOISE_LEVELS = [2.0]
-    #     EXP_NAMES = ['CT_Sigma_5_t_10', 'CT_Sigma_25_t_10', 'Sigma_25_t_1',  'Sigma_25_t_10']
-    # if opt == 2:
-    #     NOISE_LEVELS = [1.0]
-    #     EXP_NAMES = ['Sigma_25_t_50', 'Sigma_5_t_1', 'Sigma_5_t_10', 'Sigma_5_t_50']
-    # if opt == 3:
-    #     NOISE_LEVELS = [2.0]
-    #     EXP_NAMES = ['Sigma_25_t_50', 'Sigma_5_t_1', 'Sigma_5_t_10', 'Sigma_5_t_50']
-    p1_init = 0.0178512580512
-    p2_init = 1.62768274813 
-    EXP_NAMES = ['CT_Sigma_25_t_10']
-    NOISE_LEVELS = [0.5]
     for exp_name in EXP_NAMES:
         for noise_level in NOISE_LEVELS:
             job_name = f"{modality}_noise_{noise_level}_crr_{exp_name}"
