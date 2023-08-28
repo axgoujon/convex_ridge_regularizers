@@ -306,10 +306,10 @@ def AGD_Recon(y, model, restart=False, lmbd=1, mu=1, H=None, Ht=None, op_norm=1,
             if crop:
                 x_crop = center_crop(x, [320,320])
                 psnr_ = psnr(x_crop, x_gt, data_range=1)
-                ssim_ = ssim(x_crop, x_gt)
+                ssim_ = ssim(x_crop, x_gt, data_range=1)
             else:
-                psnr_ = psnr(x, x_gt, data_range=1.0)
-                ssim_ = ssim(x, x_gt)
+                psnr_ = psnr(x, x_gt, data_range=1)
+                ssim_ = ssim(x, x_gt, data_range=1)
             pbar.set_description(f"psnr: {psnr_:.2f} | ssim: {ssim_:.4f} | res: {res:.2e}")
         else:
             psnr_ = None

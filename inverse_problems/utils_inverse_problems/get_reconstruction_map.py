@@ -55,6 +55,39 @@ def get_reconstruction_map(method, modality, device="cuda:0", **opts):
                 return(x, psnr_, ssim_, n_iter)
         else:
             raise NotImplementedError
+    elif method == 'wcrr':
+        from utils_inverse_problems.reconstruction_map_wcrr import SAGD_Recon
+        sys.path += ['../../others/wcrr/model_wcrr/']
+        from utils import load_model as load_model_wcrr
+        
+        
+        model_name = opts.get('model_name', 'WCRR-CNN')
+
+        if model_name is None:
+            raise ValueError("Please provide a model_name for the wcrr model. It is the name of the folder corrsponding to the trained model.")
+        
+        model = load_model_wcrr(model_name, device=device)
+        model.eval()
+
+        sn_pm = model.conv_layer.spectral_norm(mode="power_method", n_steps=1000)
+
+
+        if modality == 'ct':
+
+            def reconstruction_map(y, p1, p2, x_gt=None, x_init=None):
+                with torch.no_grad():
+                    x, psnr_, ssim_, n_iter = SAGD_Recon(y, model, lmbd=p1, mu=p2, H=H, Ht=Ht, x_gt=x_gt, x_init=x_init, op_norm=op_norm, **opts)
+                return(x, psnr_, ssim_, n_iter)
+        elif modality == 'mri':
+            def reconstruction_map(y, mask, smap, p1, p2, x_gt=None, x_init=None):
+                with torch.no_grad():
+                    H, Ht = get_operators_mri(mask, smap, device=device)
+                    op_norm = get_op_norm_mri(H, Ht, img_size=[mask.shape[2], mask.shape[3]], device=device)
+                    x_zf = Ht(y)
+                    x, psnr_, ssim_, n_iter = SAGD_Recon(y, model, lmbd=p1, mu=p2, H=H, Ht=Ht, x_gt=x_gt, x_init=x_zf, op_norm=op_norm, **opts)
+                return(x, psnr_, ssim_, n_iter)
+        else:
+            raise NotImplementedError
         
     elif method == 'tv':
         if modality == 'ct':

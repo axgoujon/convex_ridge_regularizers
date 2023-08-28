@@ -1,6 +1,8 @@
 # A Neural-Network-Based Convex Regularizer for Inverse Problems
+**New** *Check the extension of CRR-NNs to weakly-convex regularizers [preprint](https://arxiv.org/abs/2308.10542)/[repo](https://github.com/axgoujon/weakly_convex_ridge_regularizers). Remark: the latter repository also includes a multi-noise-level deep-equilibrium training of CRR-NNs with a slightly simpler procedure (shared activations + no spline regularization), with same denoising performance.*
+#
 
-Implementation of the CRR-NNs as presented in this [preprint](https://arxiv.org/pdf/2211.12461.pdf). For any bug report/question/help needed please [contact us](mailto:alexis.goujon@epfl.ch).
+Implementation of the CRR-NNs as presented in this [paper](https://ieeexplore.ieee.org/document/10223264) (or [open access version](https://arxiv.org/pdf/2211.12461.pdf)). For any bug report/question/help needed please [contact us](mailto:alexis.goujon@epfl.ch).
 
 *Nb: detailed information is provided in the README.me of each folder.*
 

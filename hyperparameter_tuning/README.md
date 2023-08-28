@@ -1,4 +1,4 @@
-Given a score function, the script [hyperparameter_tuning.py](https://github.com/axgoujon/convex_ridge_regularizers/blob/main/hyperparameter_tuning.py) allows one to tune two hyperparameters with the simple coarse-to-fine approach given in the [preprint](https://arxiv.org/pdf/2211.12461.pdf).
+Given a score function, the script [hyperparameter_tuning.py](https://github.com/axgoujon/convex_ridge_regularizers/blob/main/hyperparameter_tuning.py) allows one to tune two hyperparameters with the simple coarse-to-fine approach given in the [paper](https://ieeexplore.ieee.org/document/10223264) (or [open access version](https://arxiv.org/pdf/2211.12461.pdf)).
 
 
 Requirements
@@ -34,4 +34,4 @@ The *.csv* also allows to skip the calls to the score function for parameters th
 The routine can be used to tune a single parameter by setting `freeze_p2=True`.
 
 **Validation set**
-For the experiments presented in the [preprint](https://arxiv.org/pdf/2211.12461.pdf), it was noticed that a small validation set (<=10 well chosen samples) suffices to generalize well. Hence the tuning phase is rather fast.
+For the experiments presented in the [paper](https://ieeexplore.ieee.org/document/10223264) (or [open access version](https://arxiv.org/pdf/2211.12461.pdf)), it was noticed that a small validation set (<=10 well chosen samples) suffices to generalize well. Hence the tuning phase is rather fast.
