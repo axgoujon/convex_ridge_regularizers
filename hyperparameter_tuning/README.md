@@ -1,4 +1,4 @@
-Given a score function, the script [hyperparameter_tuning.py](https://github.com/axgoujon/convex_ridge_regularizers/blob/main/hyperparameter_tuning.py) allows one to tune two hyperparameters with the simple coarse-to-fine approach given in the [paper](https://ieeexplore.ieee.org/document/10223264) (or [open access version](https://arxiv.org/pdf/2211.12461.pdf)).
+Given a score function, the script [validate_coarse_to_fine.py](https://github.com/axgoujon/convex_ridge_regularizers/blob/main/validate_coarse_to_fine.py) allows one to tune two hyperparameters with the simple coarse-to-fine approach given in the [paper](https://ieeexplore.ieee.org/document/10223264) (or [open access version](https://arxiv.org/pdf/2211.12461.pdf)).
 
 
 Requirements
