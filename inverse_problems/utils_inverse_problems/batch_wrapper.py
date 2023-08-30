@@ -33,6 +33,7 @@ def validate(method, modality, device, job_name, **kwargs):
     else:
         raise ValueError(f"modality: {modality} not recognized")
 
+    
     # reconstruction map
     reconstruction_map = get_reconstruction_map(method, modality, device=device, **kwargs)
 

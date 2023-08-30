@@ -10,7 +10,9 @@ from PIL import Image
 
 class fastmri_dataset_multi(Dataset):
     def __init__(self, mode = 'val', acc = 4, cf = 0.08, noise_sd = 0.0, data_type = 'pd'):
-        self.data_dir = os.path.join('/home/bohra/MRI_exps/simdata', 'multicoil_acc_' + str(acc) + '_cf_' + str(cf) + '_noisesd_' + str(noise_sd) , data_type, mode + '_images')
+
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        self.data_dir = os.path.join(dir_path, 'data_sets/multicoil_acc_' + str(acc) + '_cf_' + str(cf) + '_noisesd_' + str(noise_sd) , data_type, mode + '_images')
         self.data_files = sorted(os.listdir(self.data_dir))
 
 
@@ -30,9 +32,14 @@ class fastmri_dataset_multi(Dataset):
 
 class fastmri_dataset_single(Dataset):
     def __init__(self, mode = 'val', acc = 4, cf = 0.08, noise_sd = 0.0, data_type = 'pd'):
-        self.data_dir = os.path.join('/home/bohra/MRI_exps/simdata', 'singlecoil_acc_' + str(acc) + '_cf_' + str(cf) + '_noisesd_' + str(noise_sd) , data_type, mode + '_images')
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+
+        self.data_dir = os.path.join(dir_path, 'data_sets/singlecoil_acc_' + str(acc) + '_cf_' + str(cf) + '_noisesd_' + str(noise_sd) , data_type, mode + '_images/')
+
+    
         self.data_files = sorted(os.listdir(self.data_dir))
 
+        #
 
     def __getitem__(self, index):
         curr_file_dir = os.path.join(self.data_dir, self.data_files[index])

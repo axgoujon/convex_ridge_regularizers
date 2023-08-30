@@ -3,7 +3,8 @@
 ## Downloads
 You have two options.
 ### (faster) Preprocessed data
-Download the  data ([zenodo link](https://doi.org/10.5281/zenodo.8091821)), unzip it and put it in the data folder under the name `data_sets.
+Download the  data [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8302121.svg)](https://doi.org/10.5281/zenodo.8302121)
+, unzip it and put it in the data folder under the name `data_sets.
 
 The data contains validation (aka calibration) and test sets with:
 - ground truth image,

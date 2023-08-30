@@ -4,7 +4,7 @@ from datetime import datetime
 
 class ValidateCoarseToFine():
     """Class to perform a coarse-to-fine hyperparameter tuning"""
-    def __init__(self, score, dir_name, exp_name, p1_init=1, p2_init=10, gamma1=3, gamma2=3, decay_factor=0.5, grid_size=3, freeze_p2=False, verbose=True, gamma_stop=1.01, p1_max=float('inf'), p2_max=float('inf'), **kwargs):
+    def __init__(self, score, dir_name, exp_name, p1_init=1, p2_init=10, gamma1=3, gamma2=3, decay_factor=0.5, grid_size=3, freeze_p2=False, verbose=True, gamma_stop=1.05, p1_max=float('inf'), p2_max=float('inf'), **kwargs):
         """ Parameters
         ----------
         score: function
@@ -60,8 +60,6 @@ class ValidateCoarseToFine():
         self.p1_max = p1_max
         self.p2_max = p2_max
 
-        print(p2_max)
-
         # initiliaze the parameters
         self.p1 = p1_init
         self.p2 = p2_init
@@ -109,7 +107,7 @@ class ValidateCoarseToFine():
 
     # update scores on the local grid
     def update_scores(self):
-        print("---- computing val scores on the local grid ----")
+        #print("---- computing scores on the updated local grid ----")
         self.psnr_grid[:, :] = - np.inf
         self.ssim_grid[:, :] = - np.inf
 
@@ -125,10 +123,7 @@ class ValidateCoarseToFine():
                 p1 = self.p1*(self.gamma1)**k
                 p2 = self.p2*(self.gamma2)**j
 
-                if self.freeze_p2:
-                    print(f"\t --> p1={p1:.2e}")
-                else:
-                    print(f"\t --> p1={p1:.2e}, p2={p2:.2e}")
+                
                 
                 # check if psnr already computed for (almost) the same parameters
                 df_t = self.scores[((1 - self.scores["p1"]/p1).abs()<(1e-4))]
@@ -137,6 +132,18 @@ class ValidateCoarseToFine():
                 sk = False
                 sk_p1 = False
                 sk_p2 = False
+
+                def printLine(n):
+                    if self.verbose:
+                        print("\n")
+                        st = f'=== Effective iter {n} === Job {self.exp_name.replace("validation_scores_", "")} ==='
+                        print(len(st)*"_")
+                        print(st)
+                        if self.freeze_p2:
+                            print(f"=== Parameter: p1={p1:.2e}")
+                        else:
+                            print(f"=== Parameters: p1={p1:.2e}, p2={p2:.2e}")
+
                 if df_t.shape[0] > 0:
                     psnr_t = df_t.iloc[0, 3]
                     ssim_t = df_t.iloc[0, 4]
@@ -144,12 +151,16 @@ class ValidateCoarseToFine():
                     sk = True
                     self.psnr_grid[k, j] = psnr_t
                     self.ssim_grid[k, j] = ssim_t
+                    printLine(len(self.scores))
 
                 elif (p1 > self.p1_max):
-                    sk_p1 = True  
+                    sk_p1 = True
+                    printLine(len(self.scores))
                 elif (p2 > self.p2_max):
                     sk_p2 = True
+                    printLine(len(self.scores))
                 else:
+                    printLine(len(self.scores) + 1)
                     psnr_t, ssim_t,  niter_t = self.score(p1, p2)
                     
                     self.psnr_grid[k, j] = psnr_t
@@ -161,8 +172,7 @@ class ValidateCoarseToFine():
                     
         
                 if self.verbose:
-                    print(20*"=")
-                    print(f'\n\n=== Effective iter {len(self.scores)} === Job {self.exp_name.replace("validation_scores_", "")} ===')
+                    
                     if not(sk_p1 or sk_p2):
                         print(f"\n \t psnr={psnr_t:.2f}dB (best {self.scores['psnr'].max():.2f}dB)")
                     if sk:
@@ -171,6 +181,7 @@ class ValidateCoarseToFine():
                         print(f" \t \t (skipping value since p1 greater than {self.p1_max})")
                     if sk_p2:
                         print(f" \t \t (skipping value since p2 greater than {self.p2_max})")
+                   
                     #print(f"SSIM {ssim_t:.3f} __ running max {self.scores['ssim'].max():.3f}")
     
     def save_scores(self):
@@ -178,16 +189,17 @@ class ValidateCoarseToFine():
 
     # update grid properties based on the scores
     def update_grid(self):
-        print(f"\n ----  updating grid ----")
+        print("\n")
+        print("**** UPDATING THE GRID PARAMETERS ****")
         ind = np.unravel_index(np.argmax(self.psnr_grid, axis=None), self.psnr_grid.shape)
 
         if ind[0] == 0:
             self.p1 = self.p1 * (self.gamma1)**(-(self.grid_size//2))
-            print("-[p1] lower border hit for => shifting grid down")
+            print("-[p1] lower border hit => shifting grid down")
         elif ind[0] == self.grid_size - 1:
             
             self.p1 = self.p1 * (self.gamma1)**(self.grid_size//2)
-            print("-[p1] upper border hit for => shifting grid up")
+            print("-[p1] upper border hit => shifting grid up")
         else:
             # find new center
             p1_new_center = self.p1*(self.gamma1)**ind[0]
@@ -219,18 +231,20 @@ class ValidateCoarseToFine():
             self.p2 = min(self.p2, self.p2_max)
 
     def run(self):
-
-        print(f"---- running grid search for {self.exp_name} ----")
+        print(36*"*")
+        print(f"**** COARSE-TO-FINE GRID SEARCH ****")
+        print(36*"*")
+        print(f"\t Job name: {self.exp_name}")
         if self.freeze_p2:
             while self.gamma1 > self.gamma_1_stop:
                 self.update_scores()
                 self.update_grid()
-            print(" Done ")
+            print(" Job Done ")
         else:
             while (self.gamma1 > self.gamma_1_stop) or (self.gamma2 > self.gamma_2_stop):
                 self.update_scores()
                 self.update_grid()
-            print(" Done ")
+            print(" Job Done ")
 
 
 def get_time_str():
